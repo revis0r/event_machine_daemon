@@ -31,6 +31,7 @@ class Directory::Server < EM::Connection
         raise "Empty query" unless data.present?
         query_string = "%#{data}%"
         people = Person.where(@arel[:name].matches(query_string)).to_a
+        ActiveRecord::Base.connection_pool.release_connection
         if people.present?
           debug "[+] Founded #{people.count} people by query: \"#{data}\""
           "[+] " + people.map{|p| "#{p.name}: #{p.phone}"}.join("\n")
