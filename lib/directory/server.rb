@@ -23,7 +23,7 @@ class Directory::Server < EM::Connection
   # @return [Array] полученный пакет
   def receive_data data
     close_connection if data =~ /quit/i
-    operation = Proc.new do
+    EM.defer do
       data = data.strip
       # Анонимная функция операции
       # Выполняет поиск клиента в базе
@@ -34,27 +34,29 @@ class Directory::Server < EM::Connection
         ActiveRecord::Base.connection_pool.release_connection
         if people.present?
           debug "[+] Founded #{people.count} people by query: \"#{data}\""
-          "[+] " + people.map{|p| "#{p.name}: #{p.phone}"}.join("\n")
+          callback.succeed "[+] " + people.map{|p| "#{p.name}: #{p.phone}"}.join("\n")
         else
           debug "[-] Not found people by query: \"#{data}\""
-          "[-] Not found"
+          callback.succeed "[-] Not found"
         end
       rescue Exception => e
         error "[!] Exception"
         error e.message
         error e.backtrace.inspect
-        "[-] " + e.message
+        callback.succeed "[-] " + e.message
       end
     end
 
     # Колбэк после выполнения операции.
     # Принимает на вход то, что вернул operation.
     # Генерирует ответ, и возвращает его клиенту.
-    callback = Proc.new do |r|
+
+  end
+
+  def callback
+    EM::DefaultDeferrable.new.callback do |r|
       send(r)
     end
-
-    EM.defer operation, callback
   end
 
   def unbind
