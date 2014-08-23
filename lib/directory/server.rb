@@ -46,13 +46,11 @@ class Directory::Server < EM::Connection
         callback.succeed "[-] " + e.message
       end
     end
-
-    # Колбэк после выполнения операции.
-    # Принимает на вход то, что вернул operation.
-    # Генерирует ответ, и возвращает его клиенту.
-
   end
 
+  # Колбэк после выполнения операции.
+  # Принимает на вход то, что вернул operation.
+  # Генерирует ответ, и возвращает его клиенту.
   def callback
     EM::DefaultDeferrable.new.callback do |r|
       send(r)
