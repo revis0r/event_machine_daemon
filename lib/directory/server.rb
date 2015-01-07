@@ -1,32 +1,51 @@
 # 
-# Класс сервера для EventMachine
+# EventMachine directory server
 # 
-# @author  Ivan Goncharov
 class Directory::Server < EM::Connection
-  # Старт сервера.
-  # Загружает конфиги, устанавливает переменные и т.д.
+  # Starting of server.
+  # Load configuration, set variables, etc.
   def initialize
     debug "Starting Directory Server."
-    # Устанавливаем переменные
+    # Set variables
     @debug = true
     @arel = Person.arel_table
   end
 
+  # 
+  # Callback on accept connection
+  # 
   def post_init
     debug "[!] Connection accepted!"
   end
 
   # 
-  # Колбэк на получение данных
-  # @param data [String] данные
+  # Callback on receive data
+  # @param data [String] data
   # 
-  # @return [Array] полученный пакет
+  # @return [Array] received data
   def receive_data data
     close_connection if data =~ /quit/i
-    EM.defer do
+    EM.defer Proc.new{ process_request(data) }, Proc.new { |r| send(r) }
+  end
+
+  # 
+  # Callback on close connection
+  # 
+  def unbind
+    debug 'Connection closed'
+  end
+
+  private
+
+    # 
+    # Our "long-running operation".
+    # Search person by name
+    # 
+    # @param data [String] received name
+    # 
+    # @return [String] result of searching
+    def process_request data
       data = data.strip
-      # Анонимная функция операции
-      # Выполняет поиск клиента в базе
       begin
         raise "Empty query" unless data.present?
         query_string = "%#{data}%"
@@ -34,35 +53,22 @@ class Directory::Server < EM::Connection
         ActiveRecord::Base.connection_pool.release_connection
         if people.present?
           debug "[+] Founded #{people.count} people by query: \"#{data}\""
-          callback.succeed "[+] " + people.map{|p| "#{p.name}: #{p.phone}"}.join("\n")
+          "[+] " + people.map{|p| "#{p.name}: #{p.phone}"}.join("\n")
         else
           debug "[-] Not found people by query: \"#{data}\""
-          callback.succeed "[-] Not found"
+          "[-] Not found"
         end
       rescue Exception => e
         error "[!] Exception"
         error e.message
         error e.backtrace.inspect
-        callback.succeed "[-] " + e.message
-      end
+        "[-] " + e.message
+      end    
     end
-  end
 
-  # Колбэк после выполнения операции.
-  # Принимает на вход то, что вернул operation.
-  # Генерирует ответ, и возвращает его клиенту.
-  def callback
-    EM::DefaultDeferrable.new.callback do |r|
-      send(r)
-    end
-  end
-
-  def unbind
-    debug 'Connection closed'
-  end
-
-  private
-
+    # 
+    # Send data to client
+    # @param data [String] response string
     def send(data)
       send_data(data+"\n")
     end

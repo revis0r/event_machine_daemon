@@ -7,17 +7,15 @@ require 'optparse'
 require_relative './server'
 
 # 
-# Класс для управления Directory-сервером.
-# Разбирает входные параметры, настраивает и запускает сервер
-# 
-# @author  Ivan Goncharov
+# Control class for Directory-server.
+# Parse arguments, configure and start server
 module Directory
   class Command
     # 
-    # Конструктор. Разбирает переданные параметры
-    # @param args [Array] параметры командной строки ARGV
+    # Constructor. Parse arguments passed from console
+    # @param args [Array] console arguments ARGV
     # 
-    # @return [Directory::Command] объект класса
+    # @return [Directory::Command] object of class
     def initialize(args)
       @options = {
         :quiet => true,
@@ -46,7 +44,7 @@ module Directory
     end
 
     # 
-    # Демонизация класса
+    # Daemonize of server
     def daemonize
       dir = @options[:pid_dir]
       Dir.mkdir(dir) unless File.exist?(dir)
@@ -54,9 +52,9 @@ module Directory
     end
 
     # 
-    # Запуск процесса
-    # @param process_name [String] имя процесса
-    # @param options [Hash] опции
+    # Run process
+    # @param process_name [String] name of process
+    # @param options [Hash] options
     def run_process(process_name, options = {})
       Daemons.run_proc(process_name, :dir => options[:pid_dir], :dir_mode => :normal, :monitor => @monitor, :ARGV => @args) do |*_args|
         $0 = File.join(options[:prefix], process_name) if @options[:prefix]
@@ -65,9 +63,9 @@ module Directory
     end
 
     # 
-    # Запуск EventMachine
-    # @param worker_name [String] имя процесса
-    # @param options [Hash] опции
+    # Start EventMachine
+    # @param worker_name [String] name of process
+    # @param options [Hash] options
     def run(worker_name = nil, options = {})
       Dir.chdir(Rails.root)
 
